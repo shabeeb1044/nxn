@@ -6,7 +6,11 @@ import { apiError } from '@/lib/api-utils'
 export async function POST(request: NextRequest) {
   try {
     await initializeDatabase()
-    const { email, password } = await request.json()
+    const { email, password, loginType } = await request.json() as {
+      email?: string
+      password?: string
+      loginType?: string
+    }
 
     if (!email || !password) {
       return NextResponse.json(
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (user.role === 'agency') {
+    if (user.role === 'agency' && loginType !== 'candidate') {
       const agency = await db.agencies.getById(user.agencyId || user.id)
       if (agency) {
         const approvalStatus = (agency as any).approvalStatus || 'pending'
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (user.role === 'agent' && user.agencyId) {
+    if (user.role === 'agent' && user.agencyId && loginType !== 'candidate') {
       const agency = await db.agencies.getById(user.agencyId)
       if (agency) {
         const approvalStatus = (agency as any).approvalStatus || 'pending'

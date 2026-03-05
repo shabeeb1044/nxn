@@ -36,6 +36,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { useTheme } from "next-themes"
+import { DashboardNotificationBell } from "@/components/dashboard-notification-bell"
 
 // Mock stats (can be replaced with API later)
 const stats = [
@@ -79,6 +80,7 @@ export default function CandidateDashboard() {
     status: string
     createdAt: string
   }>>([])
+  const [candidateId, setCandidateId] = useState("")
 
   useEffect(() => {
     const userStr = typeof window !== "undefined" ? localStorage.getItem("user") : null
@@ -90,6 +92,7 @@ export default function CandidateDashboard() {
         const parts = name.trim().split(" ").filter(Boolean)
         setInitials(parts.length >= 2 ? `${parts[0][0]}${parts[1][0]}` : name.slice(0, 2) || "C")
         const id = user.id
+        if (id) setCandidateId(id)
         if (id) {
           fetch(`/api/candidate/profile?candidateId=${encodeURIComponent(id)}`)
             .then((res) => res.json())
@@ -198,6 +201,13 @@ export default function CandidateDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            {candidateId && (
+              <DashboardNotificationBell
+                role="candidate"
+                entityId={candidateId}
+                viewAllHref="/candidate/applications"
+              />
+            )}
             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

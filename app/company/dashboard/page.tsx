@@ -37,7 +37,8 @@ interface RecentDemand {
   id: string
   jobTitle: string
   location: string
-  positions: number
+  positions?: number
+  quantity?: number
   filledPositions: number
   status: string
   createdAt: string
@@ -295,7 +296,8 @@ export default function CompanyDashboard() {
               ) : (
                 <div className="space-y-1.5">
                   {filteredDemands.map(d => {
-                    const fillPct = d.positions > 0 ? Math.round((d.filledPositions / d.positions) * 100) : 0
+                    const total = d.positions ?? d.quantity ?? 0
+                    const fillPct = total > 0 ? Math.round((d.filledPositions / total) * 100) : 0
                     return (
                       <Link key={d.id} href={`/company/demands/${d.id}`}
                         className="group flex flex-col gap-2 rounded-xl border border-transparent p-3.5 transition-all hover:border-border hover:bg-muted/40">
@@ -312,14 +314,14 @@ export default function CompanyDashboard() {
                                 <Users className="h-3 w-3" />{d.submissionCount} submitted
                               </span>
                               <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />{d.filledPositions}/{d.positions} filled
+                                <Clock className="h-3 w-3" />{d.filledPositions}/{total} filled
                               </span>
                             </div>
                           </div>
                           <StatusPill status={d.status} />
                         </div>
                         {/* fill progress */}
-                        {d.positions > 0 && (
+                        {total > 0 && (
                           <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
                             <div className="h-full rounded-full bg-emerald-500 transition-all duration-500"
                               style={{ width: `${fillPct}%` }} />

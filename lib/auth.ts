@@ -75,6 +75,23 @@ export async function authenticate(email: string, password: string): Promise<Use
     }
   }
 
+  // 5) Candidate users live in `candidates`
+  const candidate = await db.candidates.getByEmail(normalizedEmail)
+  if (candidate && (candidate.password === password || verifyPassword(password, candidate.password))) {
+    return {
+      id: candidate.id,
+      email: candidate.email,
+      phone: candidate.phone,
+      password: candidate.password,
+      role: 'candidate' as const,
+      name: `${candidate.firstName} ${candidate.lastName}`.trim() || candidate.email,
+      isActive: candidate.isActive,
+      candidateId: candidate.id,
+      createdAt: candidate.createdAt,
+      updatedAt: candidate.updatedAt,
+    }
+  }
+
   return null
 }
 

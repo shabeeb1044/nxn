@@ -1,15 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Label } from "@/components/ui/label"
 import { PageLoader } from "@/components/page-loader"
 import {
   Mail, Phone, Play, FileText, Search, Lock, Crown,
   ChevronRight, Users, CheckCircle2, XCircle, Clock,
   Star, MessageSquare, Building2, Calendar, ArrowRight,
+  SlidersHorizontal, X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -44,15 +47,22 @@ interface PlanInfo {
 }
 
 const STATUS_CONFIG = {
-  submitted:   { label: "Submitted",   icon: Clock,          color: "text-sky-600 dark:text-sky-400",     bg: "bg-sky-500/10 border-sky-500/20",     dot: "bg-sky-500"     },
-  pending:     { label: "Pending",     icon: Clock,          color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-500/10 border-slate-500/20", dot: "bg-slate-400"   },
-  shortlisted: { label: "Shortlisted", icon: Star,           color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10 border-violet-500/20", dot: "bg-violet-500" },
-  interview:   { label: "Interview",   icon: MessageSquare,  color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", dot: "bg-amber-500"   },
-  hired:       { label: "Hired",       icon: CheckCircle2,   color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-500" },
-  rejected:    { label: "Rejected",    icon: XCircle,        color: "text-rose-600 dark:text-rose-400",   bg: "bg-rose-500/10 border-rose-500/20",   dot: "bg-rose-500"    },
+  submitted:   { label: "Submitted",   icon: Clock,         color: "text-sky-600 dark:text-sky-400",      bg: "bg-sky-500/10 border-sky-500/20",      dot: "bg-sky-500"     },
+  pending:     { label: "Pending",     icon: Clock,         color: "text-slate-600 dark:text-slate-400",  bg: "bg-slate-500/10 border-slate-500/20",  dot: "bg-slate-400"   },
+  shortlisted: { label: "Shortlisted", icon: Star,          color: "text-violet-600 dark:text-violet-400",bg: "bg-violet-500/10 border-violet-500/20",dot: "bg-violet-500"  },
+  interview:   { label: "Interview",   icon: MessageSquare, color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-500/10 border-amber-500/20",  dot: "bg-amber-500"   },
+  hired:       { label: "Hired",       icon: CheckCircle2,  color: "text-emerald-600 dark:text-emerald-400",bg:"bg-emerald-500/10 border-emerald-500/20",dot:"bg-emerald-500"},
+  rejected:    { label: "Rejected",    icon: XCircle,       color: "text-rose-600 dark:text-rose-400",    bg: "bg-rose-500/10 border-rose-500/20",    dot: "bg-rose-500"    },
 } as const
 
 type StatusKey = keyof typeof STATUS_CONFIG
+
+const DATE_RANGE_OPTIONS = [
+  { label: "All time",     value: "all" },
+  { label: "Last 7 days",  value: "7d"  },
+  { label: "Last 30 days", value: "30d" },
+  { label: "Last 90 days", value: "90d" },
+]
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = STATUS_CONFIG[status as StatusKey] ?? STATUS_CONFIG.submitted
@@ -67,12 +77,9 @@ function StatusBadge({ status }: { status: string }) {
 function Avatar({ name }: { name: string }) {
   const initials = name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase()
   const palettes = [
-    "from-violet-500 to-indigo-600",
-    "from-sky-500 to-cyan-600",
-    "from-emerald-500 to-teal-600",
-    "from-amber-500 to-orange-600",
-    "from-rose-500 to-pink-600",
-    "from-fuchsia-500 to-purple-600",
+    "from-violet-500 to-indigo-600","from-sky-500 to-cyan-600",
+    "from-emerald-500 to-teal-600", "from-amber-500 to-orange-600",
+    "from-rose-500 to-pink-600",    "from-fuchsia-500 to-purple-600",
   ]
   const palette = palettes[name.charCodeAt(0) % palettes.length]
   return (
@@ -82,13 +89,55 @@ function Avatar({ name }: { name: string }) {
   )
 }
 
+function PillBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+        active
+          ? "bg-foreground text-background border-transparent"
+          : "bg-background text-muted-foreground border-border hover:border-foreground/40"
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="flex items-center gap-1 px-2.5 py-1 bg-foreground text-background text-xs font-medium rounded-full">
+      {label}
+      <button onClick={onRemove} className="hover:opacity-70 transition">
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  )
+}
+
+function matchesDate(submittedAt: string, range: string): boolean {
+  if (range === "all") return true
+  const diff = Date.now() - new Date(submittedAt).getTime()
+  const day = 86_400_000
+  if (range === "7d")  return diff <= 7  * day
+  if (range === "30d") return diff <= 30 * day
+  if (range === "90d") return diff <= 90 * day
+  return true
+}
+
 export default function CompanyCandidatesPage() {
-  const [companyId, setCompanyId] = useState("")
+  const [companyId, setCompanyId]     = useState("")
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
-  const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [planInfo, setPlanInfo]       = useState<PlanInfo | null>(null)
+  const [loading, setLoading]         = useState(true)
+
+  // filter state
+  const [search,        setSearch]        = useState("")
+  const [statusFilter,  setStatusFilter]  = useState("all")
+  const [agencyFilter,  setAgencyFilter]  = useState("all")
+  const [demandFilter,  setDemandFilter]  = useState("all")
+  const [dateFilter,    setDateFilter]    = useState("all")
+  const [filterOpen,    setFilterOpen]    = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem("user")
@@ -122,29 +171,45 @@ export default function CompanyCandidatesPage() {
   }, [])
 
   const isFreePlan = planInfo?.isFree && !planInfo.isCorporate
-  const freeLimit = planInfo?.freeCandidateLimit ?? 4
+  const freeLimit  = planInfo?.freeCandidateLimit ?? 4
+
+  // derived option lists
+  const allAgencies = useMemo(() =>
+    Array.from(new Set(submissions.map(s => s.agencyName).filter(Boolean))).sort() as string[]
+  , [submissions])
+
+  const allDemands = useMemo(() =>
+    Array.from(new Set(submissions.map(s => s.demandTitle).filter(Boolean))).sort()
+  , [submissions])
+
+  // active filter count (excluding status which has its own pill)
+  const extraActiveCount = [agencyFilter, demandFilter, dateFilter].filter(v => v !== "all").length
+
+  const clearExtras = () => { setAgencyFilter("all"); setDemandFilter("all"); setDateFilter("all") }
 
   const filtered = submissions.filter(s => {
     const q = search.trim().toLowerCase()
     const matchSearch = !q
       || s.candidateName.toLowerCase().includes(q)
       || s.demandTitle.toLowerCase().includes(q)
-      || (s.candidate?.email && s.candidate.email.toLowerCase().includes(q))
-      || (s.candidate?.phone && s.candidate.phone.toLowerCase().includes(q))
-    return matchSearch && (statusFilter === "all" || s.status === statusFilter)
+      || (s.candidate?.email ?? "").toLowerCase().includes(q)
+      || (s.candidate?.phone ?? "").toLowerCase().includes(q)
+    return (
+      matchSearch &&
+      (statusFilter === "all" || s.status === statusFilter) &&
+      (agencyFilter === "all" || s.agencyName === agencyFilter) &&
+      (demandFilter === "all" || s.demandTitle === demandFilter) &&
+      matchesDate(s.submittedAt, dateFilter)
+    )
   })
 
   const visibleRows = isFreePlan ? filtered.slice(0, freeLimit) : filtered
 
   const handleCvDownload = (candidateId: string | undefined, candidateName: string) => {
     if (!companyId || !candidateId) return
-    if (planInfo?.isFree && !planInfo.isCorporate) {
-      toast.error("CV download is available on paid plans. Please upgrade.")
-      return
-    }
+    if (planInfo?.isFree && !planInfo.isCorporate) { toast.error("CV download is available on paid plans."); return }
     if (planInfo && typeof planInfo.cvDownloadLimit === "number" && planInfo.totalCVDownloads >= planInfo.cvDownloadLimit) {
-      toast.error("You have reached your CV download limit.")
-      return
+      toast.error("You have reached your CV download limit."); return
     }
     window.open(`/api/company/download-cv?companyId=${encodeURIComponent(companyId)}&candidateId=${encodeURIComponent(candidateId)}`, "_blank")
     setPlanInfo(prev => prev ? { ...prev, totalCVDownloads: prev.totalCVDownloads + 1 } : prev)
@@ -153,7 +218,6 @@ export default function CompanyCandidatesPage() {
 
   if (loading) return <div className="flex min-h-[40vh] items-center justify-center"><PageLoader /></div>
 
-  // Status pipeline counts
   const counts = submissions.reduce((acc, s) => { acc[s.status] = (acc[s.status] ?? 0) + 1; return acc }, {} as Record<string, number>)
   const pipelineKeys: StatusKey[] = ["submitted", "shortlisted", "interview", "hired", "rejected"]
 
@@ -165,14 +229,10 @@ export default function CompanyCandidatesPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Candidates</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              All candidates submitted across your demands.
-            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">All candidates submitted across your demands.</p>
           </div>
           <Button asChild variant="outline" size="sm" className="w-fit gap-1.5 rounded-lg">
-            <Link href="/company/demands">
-              View Demands <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            <Link href="/company/demands">View Demands <ArrowRight className="h-3.5 w-3.5" /></Link>
           </Button>
         </div>
 
@@ -222,7 +282,9 @@ export default function CompanyCandidatesPage() {
                   key={key}
                   onClick={() => setStatusFilter(statusFilter === key ? "all" : key)}
                   className={`group flex items-center justify-between rounded-2xl border p-3.5 text-left transition-all duration-150 hover:shadow-sm ${
-                    statusFilter === key ? cfg.bg + " ring-1 " + cfg.color.replace("text-", "ring-").split(" ")[0] : "border-border bg-card hover:border-border/80"
+                    statusFilter === key
+                      ? cfg.bg + " ring-1 " + cfg.color.replace("text-", "ring-").split(" ")[0]
+                      : "border-border bg-card hover:border-border/80"
                   }`}
                 >
                   <div>
@@ -240,8 +302,9 @@ export default function CompanyCandidatesPage() {
           </div>
         )}
 
-        {/* ── Search & filter bar ── */}
+        {/* ── Search + filter bar ── */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* search */}
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -251,8 +314,10 @@ export default function CompanyCandidatesPage() {
               className="rounded-xl pl-9"
             />
           </div>
+
+          {/* status quick-select */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full rounded-xl sm:w-44">
+            <SelectTrigger className="w-full rounded-xl sm:w-40">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -262,7 +327,111 @@ export default function CompanyCandidatesPage() {
               ))}
             </SelectContent>
           </Select>
+
+          {/* extra filters popover */}
+          <Popover open={filterOpen} onOpenChange={setFilterOpen}>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-xl hover:bg-muted transition shrink-0">
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
+                {extraActiveCount > 0 && (
+                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-foreground text-background text-[10px] font-semibold">
+                    {extraActiveCount}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+
+            <PopoverContent align="end" className="w-80 p-5 space-y-5 rounded-xl border-border bg-popover text-popover-foreground shadow-xl z-50">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">More filters</p>
+                {extraActiveCount > 0 && (
+                  <button onClick={clearExtras} className="text-xs text-muted-foreground hover:text-foreground transition">
+                    Reset all
+                  </button>
+                )}
+              </div>
+
+              {/* Agency */}
+              {allAgencies.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Agency</Label>
+                  <Select value={agencyFilter} onValueChange={setAgencyFilter}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="All agencies" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All agencies</SelectItem>
+                      {allAgencies.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Demand / Job title */}
+              {allDemands.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Demand / Job Title</Label>
+                  <Select value={demandFilter} onValueChange={setDemandFilter}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="All demands" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All demands</SelectItem>
+                      {allDemands.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Date range */}
+              <div className="space-y-2">
+                <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Date Submitted</Label>
+                <div className="flex flex-wrap gap-2">
+                  {DATE_RANGE_OPTIONS.map(d => (
+                    <PillBtn key={d.value} active={dateFilter === d.value} onClick={() => setDateFilter(d.value)}>
+                      {d.label}
+                    </PillBtn>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setFilterOpen(false)}
+                className="w-full py-2 bg-foreground text-background text-xs font-medium rounded-lg hover:opacity-80 transition"
+              >
+                Apply
+              </button>
+            </PopoverContent>
+          </Popover>
+
+          {/* clear extras shortcut */}
+          {extraActiveCount > 0 && (
+            <button
+              onClick={clearExtras}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition shrink-0"
+            >
+              <X className="h-3 w-3" /> Clear
+            </button>
+          )}
         </div>
+
+        {/* ── Active filter chips ── */}
+        {extraActiveCount > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {agencyFilter !== "all" && <FilterChip label={`Agency: ${agencyFilter}`}  onRemove={() => setAgencyFilter("all")} />}
+            {demandFilter !== "all" && <FilterChip label={`Demand: ${demandFilter}`}  onRemove={() => setDemandFilter("all")} />}
+            {dateFilter   !== "all" && <FilterChip label={`Submitted: ${DATE_RANGE_OPTIONS.find(d => d.value === dateFilter)?.label}`} onRemove={() => setDateFilter("all")} />}
+          </div>
+        )}
+
+        {/* ── Result count ── */}
+        {submissions.length > 0 && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Showing <strong className="text-foreground">{visibleRows.length}</strong> of{" "}
+            <strong className="text-foreground">{filtered.length}</strong> candidates
+          </p>
+        )}
 
         {/* ── Empty state ── */}
         {visibleRows.length === 0 ? (
@@ -272,17 +441,24 @@ export default function CompanyCandidatesPage() {
             </div>
             <p className="font-semibold text-foreground">No candidates found</p>
             <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-              {search || statusFilter !== "all"
-                ? "Try adjusting your search or filter."
+              {search || statusFilter !== "all" || extraActiveCount > 0
+                ? "Try adjusting your search or filters."
                 : "Candidates will appear here when agencies submit CVs against your demands."}
             </p>
+            {(search || statusFilter !== "all" || extraActiveCount > 0) && (
+              <button
+                onClick={() => { setSearch(""); setStatusFilter("all"); clearExtras() }}
+                className="mt-3 text-xs text-primary underline underline-offset-2 hover:opacity-80 transition"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         ) : (
-          /* ── Candidate cards ── */
           <div className="space-y-2.5">
             {visibleRows.map((s, i) => {
               const name = s.candidate?.name ?? s.candidateName
-              const cfg = STATUS_CONFIG[s.status as StatusKey] ?? STATUS_CONFIG.submitted
+              const cfg  = STATUS_CONFIG[s.status as StatusKey] ?? STATUS_CONFIG.submitted
               return (
                 <div
                   key={s.id}
@@ -302,7 +478,6 @@ export default function CompanyCandidatesPage() {
                           <StatusBadge status={s.status} />
                         </div>
 
-                        {/* Demand + date */}
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                           <span className="font-medium text-foreground/70">{s.demandTitle}</span>
                           <span className="flex items-center gap-1">
@@ -311,7 +486,6 @@ export default function CompanyCandidatesPage() {
                           </span>
                         </div>
 
-                        {/* Contact */}
                         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                           {isFreePlan ? (
                             <span className="flex items-center gap-1 text-muted-foreground">
@@ -335,7 +509,6 @@ export default function CompanyCandidatesPage() {
                           )}
                         </div>
 
-                        {/* Skills */}
                         {!isFreePlan && s.candidate?.skills && s.candidate.skills.length > 0 && (
                           <div className="mt-1.5 flex flex-wrap gap-1">
                             {s.candidate.skills.slice(0, 5).map(skill => (
@@ -368,7 +541,6 @@ export default function CompanyCandidatesPage() {
                           </a>
                         </Button>
                       )}
-
                       {isFreePlan ? (
                         <span className="flex items-center gap-1 rounded-xl border border-dashed border-border px-2.5 py-1.5 text-xs text-muted-foreground">
                           <Lock className="h-3 w-3" /> CV locked
@@ -382,7 +554,7 @@ export default function CompanyCandidatesPage() {
                     </div>
                   </div>
 
-                  {/* Mobile: agent row */}
+                  {/* Mobile agent row */}
                   {(s.agentName || s.agencyName) && (
                     <div className="flex items-center border-t border-border/60 px-5 py-2 sm:hidden">
                       <span className="text-xs text-muted-foreground">
@@ -394,7 +566,7 @@ export default function CompanyCandidatesPage() {
               )
             })}
 
-            {/* ── Upgrade wall for free plan ── */}
+            {/* ── Upgrade wall ── */}
             {isFreePlan && filtered.length > visibleRows.length && (
               <div className="relative overflow-hidden rounded-2xl border border-dashed border-border">
                 {Array.from({ length: Math.min(2, filtered.length - visibleRows.length) }).map((_, i) => (
@@ -416,9 +588,7 @@ export default function CompanyCandidatesPage() {
                     <p className="text-xs text-muted-foreground">Upgrade to unlock full access</p>
                   </div>
                   <Button size="sm" className="rounded-full gap-1.5">
-                    <Crown className="h-3.5 w-3.5" />
-                    Upgrade plan
-                    <ChevronRight className="h-3.5 w-3.5" />
+                    <Crown className="h-3.5 w-3.5" /> Upgrade plan <ChevronRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>

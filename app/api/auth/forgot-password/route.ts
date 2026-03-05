@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { db, initializeDatabase } from '@/lib/db'
 import { apiError } from '@/lib/api-utils'
+import { sendPasswordResetEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,24 +20,25 @@ export async function POST(request: NextRequest) {
     const admin = await db.users.getByEmail(normalizedEmail)
     const agency = await db.agencies.getByEmail(normalizedEmail)
     const company = await db.companies.getByEmail(normalizedEmail)
-    const account = admin || agency || company
+    const agent = await db.agents.getByEmail(normalizedEmail)
+    const candidate = await db.candidates.getByEmail(normalizedEmail)
+    const account = admin || agency || company || agent || candidate
 
     if (!account) {
-      // Don't reveal whether email exists - same response for success or not found
-      return NextResponse.json({
-        success: true,
-        message: 'If an account exists with this email, a password reset link has been sent.',
-      })
+      return NextResponse.json(
+        { error: 'No account found with this email address.' },
+        { status: 404 }
+      )
     }
 
     // Only allow reset for roles that use email/password login
-    const allowedRoles = ['agency', 'company', 'corporate', 'admin', 'super_admin']
+    const allowedRoles = ['agency', 'company', 'corporate', 'admin', 'super_admin', 'agent', 'candidate']
     const role = (account as any).role
     if (!allowedRoles.includes(role)) {
-      return NextResponse.json({
-        success: true,
-        message: 'If an account exists with this email, a password reset link has been sent.',
-      })
+      return NextResponse.json(
+        { error: 'No account found with this email address.' },
+        { status: 404 }
+      )
     }
 
     // Remove any existing reset tokens for this email
@@ -50,13 +52,24 @@ export async function POST(request: NextRequest) {
 
     // In production: send email with link e.g. ${process.env.APP_URL}/reset-password?token=${token}
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
-    const resetLink = `${baseUrl}/reset-password?token=${token}`
 
-    // For development/demo: return the link so user can use it without email configured
+    const type =
+      role === 'company' || role === 'corporate'
+        ? 'company'
+        : role === 'admin' || role === 'super_admin'
+          ? 'admin'
+          : role === 'candidate'
+            ? 'candidate'
+            : 'agency'
+
+    const resetLink = `${baseUrl}/reset-password?token=${token}&type=${type}`
+
+    // Send reset email only after confirming email is registered
+    await sendPasswordResetEmail(normalizedEmail, resetLink)
+
     return NextResponse.json({
       success: true,
-      message: 'If an account exists with this email, a password reset link has been sent.',
-      resetLink: process.env.NODE_ENV === 'development' ? resetLink : undefined,
+      message: 'A password reset link has been sent to your email.',
     })
   } catch (error) {
     return apiError(error, 500)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,11 +12,20 @@ import { PageLoader } from "@/components/page-loader"
 import { toast } from "sonner"
 
 export default function AgentSettingsPage() {
-  const [profile, setProfile] = useState({ name: "", email: "", phone: "", commissionPercent: 0, referralCode: "" })
+  const [profile, setProfile] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    commissionPercent: 0,
+    referralCode: "",
+    photoUrl: "",
+  })
   const [passwordForm, setPasswordForm] = useState({ new: "", confirm: "" })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [agentId, setAgentId] = useState("")
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     const user = localStorage.getItem("user")
@@ -34,6 +43,7 @@ export default function AgentSettingsPage() {
             phone: data.agent.phone || "",
             commissionPercent: data.agent.commissionPercent || 0,
             referralCode: data.agent.referralCode || "",
+            photoUrl: data.agent.photoUrl || "",
           })
         }
       })
@@ -95,6 +105,68 @@ export default function AgentSettingsPage() {
     }
   }
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !agentId) return
+
+    setPhotoUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("type", "photo")
+
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: fd })
+      const uploadData = await uploadRes.json()
+      if (!uploadRes.ok || !uploadData.url) {
+        throw new Error(uploadData.error || "Photo upload failed")
+      }
+
+      const saveRes = await fetch("/api/agent/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId, photoUrl: uploadData.url }),
+      })
+      const saveData = await saveRes.json()
+      if (!saveRes.ok || !saveData.success) {
+        throw new Error(saveData.error || "Failed to save photo")
+      }
+
+      setProfile(p => ({ ...p, photoUrl: uploadData.url }))
+      toast.success("Profile photo updated")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Photo upload failed"
+      toast.error(message)
+    } finally {
+      setPhotoUploading(false)
+      if (e.target) {
+        e.target.value = ""
+      }
+    }
+  }
+
+  const handleRemovePhoto = async () => {
+    if (!agentId || !profile.photoUrl) return
+    setPhotoUploading(true)
+    try {
+      const res = await fetch("/api/agent/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId, photoUrl: "" }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to remove photo")
+      }
+      setProfile(p => ({ ...p, photoUrl: "" }))
+      toast.success("Profile photo removed")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to remove photo"
+      toast.error(message)
+    } finally {
+      setPhotoUploading(false)
+    }
+  }
+
   if (loading) {
     return <PageLoader />
   }
@@ -116,6 +188,58 @@ export default function AgentSettingsPage() {
           <CardDescription>Update your personal information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+              {profile.photoUrl ? (
+                <img src={profile.photoUrl} alt={profile.name || "Profile photo"} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm font-medium text-muted-foreground">
+                  {(profile.name || profile.email || "AG")
+                    .split(" ")
+                    .map(part => part[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Profile Photo</p>
+              <p className="text-xs text-muted-foreground">PNG or JPG · Max 2MB</p>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={handlePhotoChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={photoUploading}
+                >
+                  {photoUploading ? "Uploading..." : profile.photoUrl ? "Change Photo" : "Upload Photo"}
+                </Button>
+                {profile.photoUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemovePhoto}
+                    disabled={photoUploading}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
           <div>
             <Label>Name</Label>
             <Input value={profile.name} onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} />

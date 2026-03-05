@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       applications.map(async (app) => {
         const candidate = await db.candidates.getById(app.candidateId)
         const agent = app.agentId ? await db.agents.getById(app.agentId) : null
-        const agency = await db.agencies.getById(app.agencyId)
+        const agency = app.agencyId === 'direct' ? null : await db.agencies.getById(app.agencyId)
         return {
           ...app,
           candidate: candidate
@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
                 videoUrl: candidate.videoUrl,
               }
             : null,
-          agentName: agent?.name ?? null,
-          agencyName: agency?.name ?? null,
+          agentName: agent?.name ?? (app.agencyId === 'direct' ? 'Direct' : null),
+          agencyName: agency?.name ?? (app.agencyId === 'direct' ? 'Self-applied' : null),
         }
       })
     )

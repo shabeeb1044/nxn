@@ -43,6 +43,14 @@ export async function POST(request: NextRequest) {
         submittedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })
+      await db.notifications.create({
+        recipientType: 'company',
+        recipientId: demand.companyId,
+        type: 'new_submission',
+        title: 'New application',
+        message: `${application.candidateName} applied for ${demand.jobTitle} (via agency).`,
+        link: `/company/demands`,
+      }).catch(() => {})
       results.push({ candidateId, status: 'submitted', applicationId: application.id })
     }
 

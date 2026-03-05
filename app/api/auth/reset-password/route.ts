@@ -51,10 +51,20 @@ export async function POST(request: NextRequest) {
         if (company) {
           await db.companies.update(company.id, { password: hashPassword(newPassword) } as any)
         } else {
-          return NextResponse.json(
-            { error: 'User not found' },
-            { status: 400 }
-          )
+          const candidate = await db.candidates.getByEmail(email)
+          if (candidate) {
+            await db.candidates.update(candidate.id, { password: hashPassword(newPassword) } as any)
+          } else {
+            const agent = await db.agents.getByEmail(email)
+            if (agent) {
+              await db.agents.update(agent.id, { password: hashPassword(newPassword) } as any)
+            } else {
+              return NextResponse.json(
+                { error: 'User not found' },
+                { status: 400 }
+              )
+            }
+          }
         }
       }
     }

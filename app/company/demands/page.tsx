@@ -14,7 +14,8 @@ interface Demand {
   jobTitle: string
   companyName: string
   location: string
-  positions: number
+  positions?: number
+  quantity?: number
   filledPositions: number
   status: string
   createdAt: string
@@ -38,12 +39,14 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-function FillBar({ filled, total }: { filled: number; total: number }) {
-  const pct = total > 0 ? Math.round((filled / total) * 100) : 0
+function FillBar({ filled, total }: { filled?: number; total?: number }) {
+  const safeFilled = typeof filled === "number" && filled >= 0 ? filled : 0
+  const safeTotal = typeof total === "number" && total >= 0 ? total : 0
+  const pct = safeTotal > 0 ? Math.round((safeFilled / safeTotal) * 100) : 0
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{filled}/{total} filled</span>
+        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{safeFilled}/{safeTotal} filled</span>
         <span className="font-medium">{pct}%</span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
@@ -84,7 +87,7 @@ export default function CompanyDemandsPage() {
 
   const open = demands.filter(d => d.status === "open").length
   const totalPositions = demands.reduce(
-    (a, d) => a + (typeof d.positions === "number" ? d.positions : 0),
+    (a, d) => a + (typeof d.positions === "number" ? d.positions : typeof d.quantity === "number" ? d.quantity : 0),
     0,
   )
   const totalFilled = demands.reduce(
@@ -205,7 +208,7 @@ export default function CompanyDemandsPage() {
                       </span>
                     </div>
 
-                    <FillBar filled={d.filledPositions} total={d.positions} />
+                    <FillBar filled={d.filledPositions} total={d.positions ?? d.quantity ?? 0} />
 
                     <Button variant="outline" size="sm" asChild className="w-full group/btn">
                       <Link href={`/company/demands/${d.id}`}>
@@ -248,7 +251,7 @@ export default function CompanyDemandsPage() {
 
                     {/* fill + action */}
                     <div className="flex flex-col gap-3 sm:items-end shrink-0 min-w-[180px]">
-                      <FillBar filled={d.filledPositions} total={d.positions} />
+                      <FillBar filled={d.filledPositions} total={d.positions ?? d.quantity ?? 0} />
                       <Button variant="outline" size="sm" asChild className="w-full sm:w-auto group/btn">
                         <Link href={`/company/demands/${d.id}`}>
                           View Submissions

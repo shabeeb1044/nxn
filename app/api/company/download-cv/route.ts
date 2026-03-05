@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, initializeDatabase } from '@/lib/db'
+
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
+    await initializeDatabase()
     const url = new URL(request.url)
     const companyId = url.searchParams.get('companyId')
     const candidateId = url.searchParams.get('candidateId')
@@ -78,7 +81,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to the actual CV file (usually /uploads/...)
-    const cvUrl = candidate.cvUrl
+    const rawCvUrl = candidate.cvUrl
+
+    // Build an absolute URL so redirect always has a valid Location header
+    const cvUrl =
+      rawCvUrl.startsWith('http://') || rawCvUrl.startsWith('https://')
+        ? rawCvUrl
+        : new URL(rawCvUrl, request.url).toString()
+
     return NextResponse.redirect(cvUrl)
   } catch (error) {
     console.error('CV download error:', error)

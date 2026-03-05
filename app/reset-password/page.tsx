@@ -15,6 +15,7 @@ function ResetPasswordInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
+  const type = searchParams.get("type") || "agency" // agency | company | candidate | admin
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -54,7 +55,15 @@ function ResetPasswordInner() {
         return
       }
       setSuccess(true)
-      setTimeout(() => router.push("/login/agency"), 2000)
+      const loginPath =
+        type === "company"
+          ? "/login/company"
+          : type === "candidate"
+            ? "/login/candidate"
+            : type === "admin"
+              ? "/admin/login"
+              : "/login/agency"
+      setTimeout(() => router.push(loginPath), 2000)
     } catch {
       setError("Network error. Please try again.")
     } finally {

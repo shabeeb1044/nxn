@@ -36,6 +36,37 @@ export async function PATCH(
       updatedAt: new Date().toISOString(),
     })
 
+    const statusLabel =
+      newStatus === 'hired' ? 'hired' : newStatus === 'interview' ? 'selected for interview' : newStatus
+    await db.notifications.create({
+      recipientType: 'candidate',
+      recipientId: app.candidateId,
+      type: 'application_status',
+      title: 'Application update',
+      message: `Your application for ${app.demandTitle} at ${app.companyName} was ${statusLabel}.`,
+      link: '/candidate/applications',
+    }).catch(() => {})
+    if (app.agencyId && app.agencyId !== 'direct') {
+      await db.notifications.create({
+        recipientType: 'agency',
+        recipientId: app.agencyId,
+        type: 'application_status',
+        title: 'Application status update',
+        message: `${app.candidateName} – ${app.demandTitle} at ${app.companyName}: ${statusLabel}.`,
+        link: '/agency/applications',
+      }).catch(() => {})
+    }
+    if (app.agentId) {
+      await db.notifications.create({
+        recipientType: 'agent',
+        recipientId: app.agentId,
+        type: 'application_status',
+        title: 'Application status update',
+        message: `${app.candidateName} – ${app.demandTitle} at ${app.companyName}: ${statusLabel}.`,
+        link: '/agent/applications',
+      }).catch(() => {})
+    }
+
     if (newStatus === 'hired') {
       const demand = await db.demands.getById(app.demandId)
       if (demand) {
