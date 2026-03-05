@@ -6,7 +6,11 @@ import { apiError } from '@/lib/api-utils'
 export async function POST(request: NextRequest) {
   try {
     await initializeDatabase()
-    const { email, password } = await request.json()
+    const { email, password, loginType } = await request.json() as {
+      email?: string
+      password?: string
+      loginType?: string
+    }
 
     if (!email || !password) {
       return NextResponse.json(
@@ -16,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await authenticate(email, password)
-    
+
     if (!user) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
@@ -24,7 +28,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (user.role === 'agency') {
+    if (user.role === 'agency' && loginType !== 'candidate') {
       const agency = await db.agencies.getById(user.agencyId || user.id)
       if (agency) {
         const approvalStatus = (agency as any).approvalStatus || 'pending'
@@ -49,7 +53,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (user.role === 'agent' && user.agencyId) {
+    if (user.role === 'agent' && user.agencyId && loginType !== 'candidate') {
       const agency = await db.agencies.getById(user.agencyId)
       if (agency) {
         const approvalStatus = (agency as any).approvalStatus || 'pending'
@@ -74,12 +78,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (user.role === 'company' || user.role === 'corporate') {
+      const company = await db.companies.getById(user.companyId || user.id)
+      if (company) {
+        if (!company.subscriptionStatus || company.subscriptionStatus !== 'active') {
+          return NextResponse.json(
+            {
+              error: 'Your account is currently under review by the administrator. Please wait until your company details are verified and approved.',
+            },
+            { status: 403 }
+          )
+        }
+        if (!company.isActive) {
+          return NextResponse.json(
+            {
+              error:
+                'Your registration could not be approved. Please contact support for assistance.',
+            },
+            { status: 403 }
+          )
+        }
+      }
+    }
+
     if (!user.isActive) {
       if (user.role === 'agent') {
         await db.agents.update(user.agentId || user.id, { isActive: true })
-        user.isActive = true
-      } else if (user.role === 'company' || user.role === 'corporate') {
-        await db.companies.update(user.companyId || user.id, { isActive: true })
         user.isActive = true
       } else if (user.role === 'candidate') {
         await db.candidates.update(user.candidateId || user.id, { isActive: true })

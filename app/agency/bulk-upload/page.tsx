@@ -33,7 +33,9 @@ interface DemandOption {
   id: string
   jobTitle: string
   companyName: string
-  positions: number
+  positions?: number
+  quantity?: number
+  filledPositions?: number
 }
 
 const statusMap = {
@@ -177,11 +179,16 @@ export default function BulkUploadPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No demand — candidates only</SelectItem>
-                {demands.map(d => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.jobTitle} — {d.companyName} ({d.positions})
-                  </SelectItem>
-                ))}
+                {demands.map(d => {
+                  const total = d.positions ?? d.quantity ?? 0
+                  const filled = typeof d.filledPositions === "number" ? d.filledPositions : 0
+                  const countLabel = total > 0 ? `${filled}/${total}` : "0"
+                  return (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.jobTitle} — {d.companyName} ({countLabel})
+                    </SelectItem>
+                  )
+                })}
               </SelectContent>
             </Select>
           </div>

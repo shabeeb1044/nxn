@@ -134,11 +134,7 @@ export default function CompanyRegisterPage() {
         setLoading(false)
         return
       }
-      if (data.user) {
-        localStorage.setItem("user", JSON.stringify(data.user))
-        localStorage.setItem("token", "company_token_" + Date.now())
-      }
-      router.push("/company/dashboard")
+      router.push("/login/company?status=registered")
     } catch {
       setError("Network error. Please try again.")
     } finally {

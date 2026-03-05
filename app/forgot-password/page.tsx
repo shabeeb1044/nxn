@@ -14,18 +14,16 @@ import { Mail, Loader2, ArrowLeft, CheckCircle } from "lucide-react"
 function ForgotPasswordInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const type = searchParams.get("type") || "agency" // agency | company
+  const type = searchParams.get("type") || "agency" // agency | company | candidate | admin
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [sent, setSent] = useState(false)
-  const [resetLink, setResetLink] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setLoading(true)
-    setResetLink(null)
     try {
       const response = await fetch("/api/auth/forgot-password", {
         method: "POST",
@@ -39,7 +37,6 @@ function ForgotPasswordInner() {
         return
       }
       setSent(true)
-      if (data.resetLink) setResetLink(data.resetLink)
     } catch {
       setError("Network error. Please try again.")
     } finally {
@@ -47,8 +44,23 @@ function ForgotPasswordInner() {
     }
   }
 
-  const loginHref = type === "company" ? "/login/company" : "/login/agency"
-  const title = type === "company" ? "Company" : "Agency"
+  const loginHref =
+    type === "company"
+      ? "/login/company"
+      : type === "candidate"
+        ? "/login/candidate"
+        : type === "admin"
+          ? "/admin/login"
+          : "/login/agency"
+
+  const title =
+    type === "company"
+      ? "Company"
+      : type === "candidate"
+        ? "Candidate"
+        : type === "admin"
+          ? "Admin"
+          : "Agency"
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -76,7 +88,15 @@ function ForgotPasswordInner() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder={type === "company" ? "contact@company.com" : "agency@example.com"}
+                    placeholder={
+                      type === "company"
+                        ? "contact@company.com"
+                        : type === "candidate"
+                          ? "your@email.com"
+                          : type === "admin"
+                            ? "admin@example.com"
+                            : "agency@example.com"
+                    }
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -100,22 +120,8 @@ function ForgotPasswordInner() {
                   <CheckCircle className="h-12 w-12 text-green-600" />
                 </div>
                 <p className="text-center text-sm text-muted-foreground">
-                  If an account exists with that email, we’ve sent a password reset link.
-                  The link expires in 1 hour.
+                  We’ve sent a password reset link to your email. The link expires in 1 hour.
                 </p>
-                {resetLink && (
-                  <div className="rounded-lg border border-border bg-muted/50 p-3">
-                    <p className="mb-2 text-xs font-medium text-muted-foreground">
-                      Development: use this link (no email sent in dev)
-                    </p>
-                    <Link
-                      href={resetLink}
-                      className="break-all text-sm text-primary hover:underline"
-                    >
-                      {resetLink}
-                    </Link>
-                  </div>
-                )}
               </div>
             )}
 

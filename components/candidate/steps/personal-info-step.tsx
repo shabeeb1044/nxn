@@ -62,6 +62,34 @@ export function PersonalInfoStep({ formData, updateFormData }: PersonalInfoStepP
         />
       </div>
 
+      {/* Password */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="password">Password *</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Create a password (min 6 characters)"
+            value={formData.password}
+            onChange={(e) => updateFormData({ password: e.target.value })}
+            required
+            minLength={6}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Confirm Password *</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            placeholder="Re-enter password"
+            value={formData.confirmPassword}
+            onChange={(e) => updateFormData({ confirmPassword: e.target.value })}
+            required
+            minLength={6}
+          />
+        </div>
+      </div>
+
       {/* WhatsApp */}
       <div className="space-y-2">
         <Label htmlFor="whatsapp">WhatsApp Number *</Label>

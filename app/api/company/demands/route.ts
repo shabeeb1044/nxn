@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'companyId required' }, { status: 400 })
     }
     const demands = await db.demands.getByCompanyId(companyId)
-    return NextResponse.json({ success: true, demands })
+    const withPositions = demands.map(d => ({ ...d, positions: d.quantity }))
+    return NextResponse.json({ success: true, demands: withPositions })
   } catch (error) {
     return apiError(error, 500)
   }

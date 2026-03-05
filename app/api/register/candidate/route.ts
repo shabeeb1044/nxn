@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, initializeDatabase } from '@/lib/db'
+import { hashPassword } from '@/lib/auth'
 import { apiError } from '@/lib/api-utils'
 import path from 'path'
 import fs from 'fs'
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
     const qualification = formData.get('qualification') as string
     const salaryRangeStr = formData.get('salaryRange') as string
     const acceptTerms = formData.get('acceptTerms') === 'true'
+    const password = formData.get('password') as string
 
     const cvFile = formData.get('cvFile') as File | null
     const videoFile = formData.get('videoFile') as File | null
@@ -89,6 +91,13 @@ export async function POST(request: NextRequest) {
     if (!fullName || !email || !whatsapp || !gender || !nationality) {
       return NextResponse.json(
         { error: 'Required personal information missing' },
+        { status: 400 }
+      )
+    }
+
+    if (!password || password.length < 6) {
+      return NextResponse.json(
+        { error: 'Password is required and must be at least 6 characters long' },
         { status: 400 }
       )
     }
@@ -216,7 +225,7 @@ export async function POST(request: NextRequest) {
       salaryRange,
       cvUrl,
       videoUrl,
-      password: 'temp_' + Date.now(),
+      password: hashPassword(password),
       isActive: true,
       status: 'available',
       ...(agencyId && { agencyId }),

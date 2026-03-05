@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -13,10 +13,33 @@ import { Building2, Loader2 } from "lucide-react"
 
 export default function CompanyLoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [info, setInfo] = useState("")
+
+  useEffect(() => {
+    const status = searchParams.get("status")
+    const pendingError = searchParams.get("error")
+
+    if (status === "registered") {
+      setInfo(
+        "Your company registration has been submitted successfully. Our admin team is reviewing your details. You will be notified once your account is approved."
+      )
+    }
+
+    if (pendingError === "pending") {
+      setError(
+        "Your account is currently under review by the administrator. Please wait until your company details are verified and approved."
+      )
+    } else if (pendingError === "rejected") {
+      setError(
+        "Unfortunately, your registration could not be approved. Please contact support for assistance."
+      )
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,6 +93,11 @@ export default function CompanyLoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {info && (
+                <div className="rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+                  {info}
+                </div>
+              )}
               {error && (
                 <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                   {error}

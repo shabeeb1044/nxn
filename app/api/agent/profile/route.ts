@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const { agentId, name, phone, password } = body
+    const { agentId, name, phone, password, photoUrl } = body
 
     if (!agentId) {
       return NextResponse.json({ error: 'agentId required' }, { status: 400 })
@@ -35,6 +35,7 @@ export async function PATCH(request: NextRequest) {
     if (name) updates.name = name
     if (phone !== undefined) updates.phone = phone
     if (password) updates.password = hashPassword(password)
+    if (photoUrl !== undefined) updates.photoUrl = photoUrl
 
     const updated = await db.agents.update(agentId, updates)
     if (!updated) {

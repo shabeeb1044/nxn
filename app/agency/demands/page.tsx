@@ -40,7 +40,7 @@ interface Demand {
   description: string
   requirements: string[]
   skills: string[]
-  salary: { min: number; max: number; currency: string }
+  salary?: { min?: number; max?: number; amount?: number; currency: string }
   gender: string
   location: string
   positions: number
@@ -55,6 +55,16 @@ interface Candidate {
   lastName: string
   skills: string[]
   status: string
+}
+
+function formatSalary(salary: Demand["salary"]): string {
+  if (!salary?.currency) return "—"
+  const cur = salary.currency
+  if (typeof salary.min === "number" && typeof salary.max === "number")
+    return `${cur} ${salary.min.toLocaleString()} – ${salary.max.toLocaleString()}`
+  if (typeof salary.amount === "number")
+    return `${cur} ${salary.amount.toLocaleString()}`
+  return cur
 }
 
 // ─── Status color helper ────────────────────────────────────────────────────
@@ -216,7 +226,7 @@ export default function DemandsPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Salary", val: `${demand.salary.currency} ${demand.salary.min.toLocaleString()} – ${demand.salary.max.toLocaleString()}` },
+              { label: "Salary", val: formatSalary(demand.salary) },
               { label: "Gender", val: demand.gender },
               { label: "Positions", val: demand.positions },
               { label: "Deadline", val: new Date(demand.deadline).toLocaleDateString() },
@@ -415,7 +425,7 @@ export default function DemandsPage() {
                   <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{demand.location}</span>
                   <span className="flex items-center gap-1">
                     <DollarSign className="h-3 w-3" />
-                    {demand.salary.currency} {demand.salary.min.toLocaleString()} – {demand.salary.max.toLocaleString()}
+                    {formatSalary(demand.salary)}
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
@@ -474,7 +484,7 @@ export default function DemandsPage() {
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{demand.location}</span>
                     <span className="flex items-center gap-1">
                       <DollarSign className="h-3 w-3" />
-                      {demand.salary.currency} {demand.salary.min.toLocaleString()} – {demand.salary.max.toLocaleString()}
+                      {formatSalary(demand.salary)}
                     </span>
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(demand.deadline).toLocaleDateString()}</span>
                   </div>
@@ -492,6 +502,7 @@ export default function DemandsPage() {
                 <div className="flex flex-col gap-3 sm:items-end shrink-0 min-w-[160px]">
                   <FillBar filled={demand.filledPositions} total={demand.positions} />
                   <div className="flex gap-2">
+                    
                     <DetailDialog demand={demand} />
                     <SubmitDialog demand={demand} />
                   </div>
@@ -553,8 +564,7 @@ export default function DemandsPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {demand.salary.currency} {demand.salary.min.toLocaleString()} – {demand.salary.max.toLocaleString()}
-                  </TableCell>
+                  {formatSalary(demand.salary)}                  </TableCell>
                   <TableCell>
                     <div className="w-28">
                       <FillBar filled={demand.filledPositions} total={demand.positions} />

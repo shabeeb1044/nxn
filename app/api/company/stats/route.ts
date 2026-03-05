@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         id: d.id,
         jobTitle: d.jobTitle,
         location: d.location,
-        positions: d.positions,
+        positions: d.quantity,
         filledPositions: d.filledPositions,
         status: d.status,
         createdAt: d.createdAt,

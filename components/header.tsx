@@ -34,6 +34,7 @@ import {
   LayoutDashboard,
   User,
 } from "lucide-react"
+import { DashboardNotificationBell } from "@/components/dashboard-notification-bell"
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -74,7 +75,7 @@ function getRoleLabel(role: string): string {
   return labels[role] || role
 }
 
-function readStoredUser(): { name?: string; email?: string; role?: string } | null {
+function readStoredUser(): { id?: string; name?: string; email?: string; role?: string } | null {
   if (typeof window === "undefined") return null
   try {
     const stored = localStorage.getItem("user")
@@ -92,7 +93,7 @@ export function Header() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [language, setLanguage] = useState("en")
-  const [user, setUser] = useState<{ name?: string; email?: string; role?: string } | null>(null)
+  const [user, setUser] = useState<{ id?: string; name?: string; email?: string; role?: string } | null>(null)
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
 
   // Hydrate user from localStorage after mount so server and client first paint match (avoids hydration error)
@@ -167,6 +168,15 @@ export function Header() {
             <span className="sr-only">Toggle theme</span>
           </Button>
 
+          {/* Notifications for dashboard roles */}
+          {user?.role && (user.role === "admin" || user.role === "super_admin") && user.id && (
+            <DashboardNotificationBell
+              role="admin"
+              entityId={user.id}
+              viewAllHref="/admin/approvals"
+            />
+          )}
+
           {/* Logged-in: Account dropdown with Dashboard + Logout */}
           {user ? (
             <DropdownMenu>
@@ -182,12 +192,29 @@ export function Header() {
                   {user.email}
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href={getDashboardHref(user.role || "")} className="flex items-center gap-2">
-                    <LayoutDashboard className="h-4 w-4" />
-                    {user.role === "candidate" ? "My Profile" : `${getRoleLabel(user.role || "")} Dashboard`}
-                  </Link>
-                </DropdownMenuItem>
+                {user.role === "candidate" ? (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/candidate/profile" className="flex items-center gap-2">
+                        <LayoutDashboard className="h-4 w-4" />
+                        Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/candidate/messages" className="flex items-center gap-2">
+                        <LayoutDashboard className="h-4 w-4" />
+                        Messages
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href={getDashboardHref(user.role || "")} className="flex items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4" />
+                      {`${getRoleLabel(user.role || "")} Dashboard`}
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setLogoutConfirmOpen(true)} className="text-destructive focus:text-destructive">
                   <LogOut className="h-4 w-4" />
@@ -329,14 +356,35 @@ export function Header() {
                     <p className="px-4 text-sm font-medium text-foreground truncate">
                       {user.name || user.email}
                     </p>
-                    <Link
-                      href={getDashboardHref(user.role || "")}
-                      onClick={() => setIsOpen(false)}
-                      className="flex items-center gap-3 rounded-lg px-4 py-3 text-foreground hover:bg-accent"
-                    >
-                      <LayoutDashboard className="h-5 w-5" />
-                      {user.role === "candidate" ? "Profile" : "Dashboard"}
-                    </Link>
+                    {user.role === "candidate" ? (
+                      <>
+                        <Link
+                          href="/candidate/profile"
+                          onClick={() => setIsOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-4 py-3 text-foreground hover:bg-accent"
+                        >
+                          <LayoutDashboard className="h-5 w-5" />
+                          Profile
+                        </Link>
+                        <Link
+                          href="/candidate/messages"
+                          onClick={() => setIsOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-4 py-3 text-foreground hover:bg-accent"
+                        >
+                          <LayoutDashboard className="h-5 w-5" />
+                          Messages
+                        </Link>
+                      </>
+                    ) : (
+                      <Link
+                        href={getDashboardHref(user.role || "")}
+                        onClick={() => setIsOpen(false)}
+                        className="flex items-center gap-3 rounded-lg px-4 py-3 text-foreground hover:bg-accent"
+                      >
+                        <LayoutDashboard className="h-5 w-5" />
+                        Dashboard
+                      </Link>
+                    )}
                     <button
                       onClick={() => setLogoutConfirmOpen(true)}
                       className="flex items-center gap-3 rounded-lg px-4 py-3 text-left text-destructive hover:bg-destructive/10"

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -119,11 +120,11 @@ export default function AdminLoginPage() {
                 )}
               </Button>
 
-              <div className="mt-4 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+              {/* <div className="mt-4 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
                 <p className="font-medium mb-1">Demo Credentials:</p>
                 <p>Username: <strong>shabeeb</strong></p>
                 <p>Password: <strong>shabeeb255.</strong></p>
-              </div>
+              </div> */}
             </form>
           </CardContent>
         </Card>

@@ -79,6 +79,7 @@ export interface Agency {
   name: string
   email: string
   phone: string
+  logoUrl?: string
   proofDocumentUrl?: string
   referralLink: string // Unique referral link
   subscriptionPlan: 'basic' | 'silver' | 'gold' | 'platinum'
@@ -222,6 +223,7 @@ export interface Agent {
   email: string
   password: string
   phone: string
+  photoUrl?: string
   commissionPercent: number
   referralCode: string
   isActive: boolean
@@ -345,6 +347,30 @@ export interface PasswordResetToken {
   token: string
   expiresAt: string
   createdAt: string
+}
+
+export type NotificationRecipientType = 'company' | 'agency' | 'agent' | 'admin' | 'candidate'
+
+export type NotificationType =
+  | 'new_submission'
+  | 'application_status'
+  | 'new_demand'
+  | 'approval'
+  | 'payment'
+  | 'message'
+  | 'system'
+
+export interface Notification {
+  id: string
+  recipientType: NotificationRecipientType
+  recipientId: string
+  type: NotificationType
+  title: string
+  message: string
+  link?: string
+  read: boolean
+  createdAt: string
+  metadata?: Record<string, unknown>
 }
 
 export type CreateCandidateInput = Omit<Candidate, 'id' | 'userId' | 'createdAt' | 'updatedAt'> & {
@@ -999,6 +1025,52 @@ export const db = {
       return (result.deletedCount ?? 0) > 0
     },
   },
+  notifications: {
+    getByRecipient: async (
+      recipientType: NotificationRecipientType,
+      recipientId: string,
+      options?: { limit?: number; unreadOnly?: boolean }
+    ): Promise<Notification[]> => {
+      const db = await getDatabase()
+      const filter: Record<string, unknown> = { recipientType, recipientId }
+      if (options?.unreadOnly) filter.read = false
+      const limit = options?.limit ?? 50
+      const list = await db
+        .collection('notifications')
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .toArray()
+      return list.map((doc) => toInterface<Notification>(doc))
+    },
+    create: async (n: Omit<Notification, 'id' | 'read' | 'createdAt'>): Promise<Notification> => {
+      const db = await getDatabase()
+      const now = new Date().toISOString()
+      const doc = {
+        ...n,
+        read: false,
+        createdAt: now,
+      }
+      const result = await db.collection('notifications').insertOne(doc)
+      return toInterface<Notification>({ ...doc, _id: result.insertedId })
+    },
+    markAsRead: async (id: string): Promise<boolean> => {
+      const db = await getDatabase()
+      const query = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { id }
+      const result = await db.collection('notifications').updateOne(query, { $set: { read: true } })
+      return (result.modifiedCount ?? 0) > 0
+    },
+    markAllAsRead: async (
+      recipientType: NotificationRecipientType,
+      recipientId: string
+    ): Promise<number> => {
+      const db = await getDatabase()
+      const result = await db
+        .collection('notifications')
+        .updateMany({ recipientType, recipientId, read: false }, { $set: { read: true } })
+      return result.modifiedCount ?? 0
+    },
+  },
 }
 
 // Initialize default plans and super admin
@@ -1037,6 +1109,8 @@ export async function initializeDatabase() {
     await database.collection('jobCategories').createIndex({ sortOrder: 1 })
     await database.collection('candidateSources').createIndex({ agencyId: 1 })
     await database.collection('candidateSources').createIndex({ agentId: 1 })
+    await database.collection('notifications').createIndex({ recipientType: 1, recipientId: 1 })
+    await database.collection('notifications').createIndex({ createdAt: -1 })
   } catch (e) {
     // If indexes already exist or duplicates are present, don't block app startup
     console.warn('Index initialization warning:', e)

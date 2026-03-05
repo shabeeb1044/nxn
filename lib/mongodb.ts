@@ -1,6 +1,9 @@
 import { MongoClient, Db } from 'mongodb'
 
 const uri = process.env.DATABASE_URL || ''
+
+console.log('uri', uri);
+
 const options = {}
 
 let client: MongoClient | null = null

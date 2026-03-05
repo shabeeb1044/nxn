@@ -55,12 +55,19 @@ interface CompanyRow {
   contactName: string
   contactEmail?: string
   contactPhone?: string
+  contactPosition?: string
   industry: string
   country: string
   city: string
   companySize?: string
   tradeLicense?: string
   website?: string
+  address?: string
+  description?: string
+  logoUrl?: string
+  proofDocumentUrl?: string
+  role?: string
+  type?: string
   isActive: boolean
   isCorporate?: boolean
   subscriptionPlan?: string
@@ -450,6 +457,9 @@ export default function AdminCompaniesPage() {
                   <p className="font-medium">{selectedCompany.contactName}</p>
                   <p className="text-muted-foreground">{selectedCompany.contactEmail || selectedCompany.email}</p>
                   <p className="text-muted-foreground">{selectedCompany.contactPhone || selectedCompany.phone}</p>
+                  {selectedCompany.contactPosition && (
+                    <p className="text-muted-foreground">{selectedCompany.contactPosition}</p>
+                  )}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Industry / Size</span>
@@ -464,6 +474,12 @@ export default function AdminCompaniesPage() {
                   <span className="text-muted-foreground">Trade license</span>
                   <p>{selectedCompany.tradeLicense || "—"}</p>
                 </div>
+                {selectedCompany.address && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Address</span>
+                    <p>{selectedCompany.address}</p>
+                  </div>
+                )}
                 {selectedCompany.website && (
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Website</span>
@@ -474,6 +490,37 @@ export default function AdminCompaniesPage() {
                     </p>
                   </div>
                 )}
+                {selectedCompany.proofDocumentUrl && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Verification document</span>
+                    <p>
+                      <a
+                        href={selectedCompany.proofDocumentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        View company document
+                      </a>
+                    </p>
+                  </div>
+                )}
+                {selectedCompany.description && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">About company</span>
+                    <p className="text-muted-foreground">{selectedCompany.description}</p>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Subscription</span>
+                  <p className="font-medium">{selectedCompany.subscriptionPlan || "—"}</p>
+                  <p className="text-muted-foreground">
+                    {(selectedCompany.subscriptionStatus && selectedCompany.subscriptionStatus.charAt(0).toUpperCase() + selectedCompany.subscriptionStatus.slice(1)) ||
+                      "Pending"}
+                    {selectedCompany.subscriptionExpiresAt &&
+                      ` · Expires ${new Date(selectedCompany.subscriptionExpiresAt).toLocaleDateString()}`}
+                  </p>
+                </div>
                 <div>
                   <span className="text-muted-foreground">Stats</span>
                   <p>CV downloads: {selectedCompany.totalCVDownloads ?? 0} · Bids: {selectedCompany.totalBids ?? 0} · Interviews: {selectedCompany.totalInterviews ?? 0} · Hires: {selectedCompany.totalHires ?? 0}</p>

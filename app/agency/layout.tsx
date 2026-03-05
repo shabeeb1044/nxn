@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import {
   LayoutDashboard,
@@ -21,7 +22,10 @@ import {
   Building2,
   Menu,
   X,
+  Sun,
+  Moon,
 } from "lucide-react"
+import { DashboardNotificationBell } from "@/components/dashboard-notification-bell"
 
 const sidebarLinks = [
   { href: "/agency/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,6 +43,7 @@ const sidebarLinks = [
 export default function AgencyLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -231,6 +236,20 @@ export default function AgencyLayout({ children }: { children: React.ReactNode }
             </h2>
           </div>
           <div className="flex items-center gap-2">
+            <DashboardNotificationBell
+              role="agency"
+              entityId={user.agencyId || user.id}
+              viewAllHref="/agency/demands"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
             <span className="hidden text-sm text-muted-foreground sm:inline">
               Welcome, {user.name}
             </span>

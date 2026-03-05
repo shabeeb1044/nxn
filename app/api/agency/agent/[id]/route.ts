@@ -9,6 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
+    console.log(body,"ppppppppppp")
     if (body.password) {
       body.password = hashPassword(body.password)
     }
